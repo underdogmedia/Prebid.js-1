@@ -1,11 +1,11 @@
-import { ajax } from '../src/ajax';
+// import { ajax } from '../src/ajax';
 import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
-import * as utils from '../src/utils';
+// import * as utils from '../src/utils';
 
-const analyticsType = 'endpoint';
-const url = 'underdog_media_url';
+// const analyticsType = 'endpoint';
+// const url = 'underdog_media_url';
 
 // Events needed
 const {
@@ -30,32 +30,33 @@ let completeObject = {
   events: []
 };
 
-let underdogmediaAnalyticsAdapter = Object.assign(adapter({ url, analyticsType }), {
-  track({ eventType, args }) {
-    switch (eventType) {
-      case AUCTION_INIT:
-        auctionInit(args);
-        break;
-      case BID_REQUESTED:
-        bidRequested(args);
-        break;
-      case BID_RESPONSE:
-        bidResponse(args);
-        break;
-      case BID_WON:
-        bidWon(args);
-        break;
-      case BID_TIMEOUT:
-        bidTimeout(args);
-        break;
-      case AUCTION_END:
-        setTimeout(function () { sendEvent(completeObject) }, 3100);
-        break;
-      default:
-        break;
+let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpoint'}),
+  {
+    track({ eventType, args }) {
+      switch (eventType) {
+        case AUCTION_INIT:
+          auctionInit(args);
+          break;
+        case BID_REQUESTED:
+          bidRequested(args);
+          break;
+        case BID_RESPONSE:
+          bidResponse(args);
+          break;
+        case BID_WON:
+          bidWon(args);
+          break;
+        case BID_TIMEOUT:
+          bidTimeout(args);
+          break;
+        case AUCTION_END:
+          setTimeout(function () { sendEvent(completeObject) }, 3100);
+          break;
+        default:
+          break;
+      }
     }
-  }
-});
+  });
 
 // DFP support
 
@@ -67,17 +68,40 @@ let underdogmediaAnalyticsAdapter = Object.assign(adapter({ url, analyticsType }
 //   });
 // });
 
-// Event handlers
+// // save the base class function
+underdogmediaAnalyticsAdapter.originEnableAnalytics = underdogmediaAnalyticsAdapter.enableAnalytics;
+
+// // override enableAnalytics so we can get access to the config passed in from the page
+underdogmediaAnalyticsAdapter.enableAnalytics = function (config) {
+//   underdogmediaAnalyticsAdapter.initOptions = config.options;
+
+//   if (!config.options.pubId) {
+//     utils.logError('Publisher ID (pubId) option is not defined. Analytics won\'t work');
+//     return;
+//   }
+
+  underdogmediaAnalyticsAdapter.originEnableAnalytics(config); // call the base class function
+}
+
+adapterManager.registerAnalyticsAdapter({
+  adapter: underdogmediaAnalyticsAdapter,
+  code: 'underdogmedia'
+});
+
+export default underdogmediaAnalyticsAdapter;
+
+// *** EVENT HANDLERS *** //
+
 let bidResponsesMapper = {};
 
 function auctionInit(args) {
+  console.log('Auction Init!!!!!')
   completeObject.auction_id = args.auctionId;
   completeObject.publisher_id = underdogmediaAnalyticsAdapter.initOptions.pubId;
   try { completeObject.referer = args.bidderRequests[0].refererInfo.referer.split('?')[0]; } catch (e) { console.log(e.message); }
   completeObject.device_type = deviceType();
 }
 function bidRequested(args) {
-
   let tmpObject = {
     type: 'REQUEST',
     bidder_code: args.bidderCode,
@@ -129,34 +153,13 @@ function deviceType() {
 
 function sendEvent(completeObject) {
   try {
-    let responseEvents = btoa(JSON.stringify(completeObject));
-    let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
-    let dataToSend = JSON.stringify({ query: mutation });
-    ajax(url, function () { console.log(Date.now() + ' Sending event to Underdog Media server.') }, dataToSend, {
-      contentType: 'application/json',
-      method: 'POST'
-    });
+    console.log('send event!!!')
+    // let responseEvents = btoa(JSON.stringify(completeObject));
+    // let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
+    // let dataToSend = JSON.stringify({ query: mutation });
+    // ajax(url, function () { console.log(Date.now() + ' Sending event to Underdog Media server.') }, dataToSend, {
+    //   contentType: 'application/json',
+    //   method: 'POST'
+    // });
   } catch (err) { console.log(err) }
 }
-
-// save the base class function
-underdogmediaAnalyticsAdapter.originEnableAnalytics = underdogmediaAnalyticsAdapter.enableAnalytics;
-
-// override enableAnalytics so we can get access to the config passed in from the page
-underdogmediaAnalyticsAdapter.enableAnalytics = function (config) {
-  underdogmediaAnalyticsAdapter.initOptions = config.options;
-
-  if (!config.options.pubId) {
-    utils.logError('Publisher ID (pubId) option is not defined. Analytics won\'t work');
-    return;
-  }
-
-  underdogmediaAnalyticsAdapter.originEnableAnalytics(config); // call the base class function
-}
-
-adapterManager.registerAnalyticsAdapter({
-  adapter: underdogmediaAnalyticsAdapter,
-  code: 'underdogmedia'
-});
-
-export default underdogmediaAnalyticsAdapter;
