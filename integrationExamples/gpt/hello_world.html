@@ -24,16 +24,37 @@
             },
             // Replace this object to test a new Adapter!
             bids: [{
-                bidder: 'appnexus',
+                bidder: 'criteo',
                 params: {
-                    placementId: 13144370
+                    zoneId: 497747
                 }
-            }]
+            },
+            {
+                bidder: 'mantis',
+                params: {
+                    property: 'demo',
+                    zone: 'zone'
+                }
+            },
+            {
+                bidder: "smartrtb",
+                params: {
+                    zoneId: "N4zTDq3PPEHBIODv7cXK",
+                    forceBid: true
+                }
+            }
+        ]
 
-        }];
+    }];
 
-        var pbjs = pbjs || {};
-        pbjs.que = pbjs.que || [];
+    var pbjs = pbjs || {};
+    pbjs.que = pbjs.que || [];
+
+    pbjs.que.push(function() {
+        pbjs.enableAnalytics([{
+            provider: 'underdogmedia'
+        }]);
+    });
 
     </script>
 
