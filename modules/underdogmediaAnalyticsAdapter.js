@@ -19,6 +19,16 @@ const {
   }
 } = CONSTANTS;
 
+// Prebid events we could utilize...
+
+// BID_ADJUSTMENT
+// NO_BID
+// BIDDER_DONE
+// SET_TARGETING
+// REQUEST_BIDS
+// ADD_AD_UNITS
+// AD_RENDER_FAILED
+
 // Memory objects
 let completeObject = {
   publisher_id: null,
@@ -73,12 +83,12 @@ underdogmediaAnalyticsAdapter.originEnableAnalytics = underdogmediaAnalyticsAdap
 
 // // override enableAnalytics so we can get access to the config passed in from the page
 underdogmediaAnalyticsAdapter.enableAnalytics = function (config) {
-//   underdogmediaAnalyticsAdapter.initOptions = config.options;
+  underdogmediaAnalyticsAdapter.initOptions = config.options;
 
-//   if (!config.options.pubId) {
-//     utils.logError('Publisher ID (pubId) option is not defined. Analytics won\'t work');
-//     return;
-//   }
+  if (!config.options.pubId) {
+    utils.logError('Publisher ID (pubId) option is not defined. Analytics won\'t work');
+    return;
+  }
 
   underdogmediaAnalyticsAdapter.originEnableAnalytics(config); // call the base class function
 }
@@ -95,13 +105,14 @@ export default underdogmediaAnalyticsAdapter;
 let bidResponsesMapper = {};
 
 function auctionInit(args) {
-  console.log('Auction Init!!!!!')
+  console.log(`auction init, args: ${JSON.stringify(args, null, 1)}`)
   completeObject.auction_id = args.auctionId;
   completeObject.publisher_id = underdogmediaAnalyticsAdapter.initOptions.pubId;
   try { completeObject.referer = args.bidderRequests[0].refererInfo.referer.split('?')[0]; } catch (e) { console.log(e.message); }
   completeObject.device_type = deviceType();
 }
 function bidRequested(args) {
+  console.log(`bidRequested, args: ${JSON.stringify(args, null, 1)}`)
   let tmpObject = {
     type: 'REQUEST',
     bidder_code: args.bidderCode,
@@ -117,6 +128,7 @@ function bidRequested(args) {
 }
 
 function bidResponse(args) {
+  console.log(`bidResponse, args: ${JSON.stringify(args, null, 1)}`)
   let tmpObject = {
     type: 'RESPONSE',
     bidder_code: args.bidderCode,
@@ -134,6 +146,7 @@ function bidResponse(args) {
 }
 
 function bidWon(args) {
+  console.log(`bidWon, args: ${JSON.stringify(args, null, 1)}`)
   let eventIndex = bidResponsesMapper[args.requestId];
   completeObject.events[eventIndex].is_winning = true;
 }
@@ -153,8 +166,8 @@ function deviceType() {
 
 function sendEvent(completeObject) {
   try {
-    console.log('send event!!!')
-    // let responseEvents = btoa(JSON.stringify(completeObject));
+    console.log(`sendEvent, completeObject: ${JSON.stringify(completeObject, null, 1)}`)
+    // let responseEvents = btoa(JSON.stringify(completeObject)); // encodes completeObject in base-64
     // let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
     // let dataToSend = JSON.stringify({ query: mutation });
     // ajax(url, function () { console.log(Date.now() + ' Sending event to Underdog Media server.') }, dataToSend, {
