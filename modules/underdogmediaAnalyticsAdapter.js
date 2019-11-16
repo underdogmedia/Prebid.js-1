@@ -34,6 +34,7 @@ let payload = {
   reqType: 'Prebid',
   adUnitCode: [],
   bidRequests: [],
+  bidResponses: [],
   udmInternal: {}
 };
 
@@ -125,9 +126,8 @@ function bidRequested(args) {
 
 function bidResponse(args) {
   // console.log(`bidResponse, args: ${JSON.stringify(args, null, 1)}`)
-  let tmpObject = {
-    type: 'RESPONSE',
-    bidder_code: args.bidderCode,
+  let bidRes = {
+    bidder: args.bidderCode,
     event_timestamp: args.responseTimestamp,
     size: args.size,
     gpt_code: args.adUnitCode,
@@ -138,16 +138,18 @@ function bidResponse(args) {
     is_winning: false
   };
 
-  bidResponsesMapper[args.requestId] = payload.events.push(tmpObject) - 1;
+  bidResponsesMapper[args.requestId] = payload.bidResponses.push(bidRes) - 1;
 }
 
 function bidWon(args) {
   console.log(`bidWon, args: ${JSON.stringify(args, null, 1)}`)
-  let eventIndex = bidResponsesMapper[args.requestId];
-  payload.events[eventIndex].is_winning = true;
+  // let eventIndex = bidResponsesMapper[args.requestId];
+  // payload.events[eventIndex].is_winning = true;
 }
 
-function bidTimeout(args) { /* TODO: implement timeout */ }
+function bidTimeout(args) {
+  console.log('bidTimeout event')
+}
 
 // Methods
 // function deviceType() {
