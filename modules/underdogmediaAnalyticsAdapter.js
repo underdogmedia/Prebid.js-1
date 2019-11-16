@@ -30,14 +30,11 @@ const {
 // AD_RENDER_FAILED
 
 // Memory objects
-let completeObject = {
-  publisher_id: null,
-  auction_id: null,
-  referer: null,
-  screen_resolution: window.screen.width + 'x' + window.screen.height,
-  device_type: null,
-  geo: null,
-  events: []
+let payload = {
+  reqType: 'Prebid',
+  adUnitCode: [],
+  bidRequests: [],
+  udmInternal: {}
 };
 
 let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpoint'}),
@@ -60,7 +57,7 @@ let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpo
           bidTimeout(args);
           break;
         case AUCTION_END:
-          setTimeout(function () { sendEvent(completeObject) }, 3100);
+          setTimeout(function () { sendEvent(payload) }, 3100);
           break;
         default:
           break;
@@ -105,30 +102,29 @@ export default underdogmediaAnalyticsAdapter;
 let bidResponsesMapper = {};
 
 function auctionInit(args) {
-  console.log(`auction init, args: ${JSON.stringify(args, null, 1)}`)
-  completeObject.auction_id = args.auctionId;
-  completeObject.publisher_id = underdogmediaAnalyticsAdapter.initOptions.pubId;
-  try { completeObject.referer = args.bidderRequests[0].refererInfo.referer.split('?')[0]; } catch (e) { console.log(e.message); }
-  completeObject.device_type = deviceType();
+  // console.log(`auction init, args: ${JSON.stringify(args, null, 1)}`)
 }
+
 function bidRequested(args) {
-  console.log(`bidRequested, args: ${JSON.stringify(args, null, 1)}`)
-  let tmpObject = {
-    type: 'REQUEST',
-    bidder_code: args.bidderCode,
-    event_timestamp: args.start,
+  // console.log(`bidRequested, args: ${JSON.stringify(args, null, 1)}`)
+  let bidReq = {
+    bidder: args.bidderCode,
+    bidType: 'Prebid',
+    bidRecvCnt: 0,
+    bidUnits: [],
     bid_gpt_codes: {}
   };
 
   args.bids.forEach(bid => {
-    tmpObject.bid_gpt_codes[bid.adUnitCode] = bid.sizes;
+    console.log(`bid: ${JSON.stringify(bid, null, 1)}`)
+    bidReq.bid_gpt_codes[bid.adUnitCode] = bid.sizes;
   });
 
-  completeObject.events.push(tmpObject);
+  payload.bidRequests.push(bidReq);
 }
 
 function bidResponse(args) {
-  console.log(`bidResponse, args: ${JSON.stringify(args, null, 1)}`)
+  // console.log(`bidResponse, args: ${JSON.stringify(args, null, 1)}`)
   let tmpObject = {
     type: 'RESPONSE',
     bidder_code: args.bidderCode,
@@ -142,32 +138,32 @@ function bidResponse(args) {
     is_winning: false
   };
 
-  bidResponsesMapper[args.requestId] = completeObject.events.push(tmpObject) - 1;
+  bidResponsesMapper[args.requestId] = payload.events.push(tmpObject) - 1;
 }
 
 function bidWon(args) {
   console.log(`bidWon, args: ${JSON.stringify(args, null, 1)}`)
   let eventIndex = bidResponsesMapper[args.requestId];
-  completeObject.events[eventIndex].is_winning = true;
+  payload.events[eventIndex].is_winning = true;
 }
 
 function bidTimeout(args) { /* TODO: implement timeout */ }
 
 // Methods
-function deviceType() {
-  if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
-    return 'tablet';
-  }
-  if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
-    return 'mobile';
-  }
-  return 'desktop';
-}
+// function deviceType() {
+//   if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
+//     return 'tablet';
+//   }
+//   if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
+//     return 'mobile';
+//   }
+//   return 'desktop';
+// }
 
-function sendEvent(completeObject) {
+function sendEvent(payload) {
   try {
-    console.log(`sendEvent, completeObject: ${JSON.stringify(completeObject, null, 1)}`)
-    // let responseEvents = btoa(JSON.stringify(completeObject)); // encodes completeObject in base-64
+    console.log(`sendEvent, payload: ${JSON.stringify(payload, null, 1)}`)
+    // let responseEvents = btoa(JSON.stringify(payload)); // encodes payload in base-64
     // let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
     // let dataToSend = JSON.stringify({ query: mutation });
     // ajax(url, function () { console.log(Date.now() + ' Sending event to Underdog Media server.') }, dataToSend, {
