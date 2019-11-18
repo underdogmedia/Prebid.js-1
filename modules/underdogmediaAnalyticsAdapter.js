@@ -112,15 +112,29 @@ function bidRequested(args) {
     bidder: args.bidderCode,
     bidType: 'Prebid',
     bidRecvCnt: 0,
-    bidUnits: [],
-    bid_gpt_codes: {}
+    bidUnits: []
   };
+
+  console.log(args.bids.length)
 
   args.bids.forEach(bid => {
     console.log(`bid: ${JSON.stringify(bid, null, 1)}`)
-    bidReq.bid_gpt_codes[bid.adUnitCode] = bid.sizes;
+    let adUnit = {}
+    let mt = ''
+    for (let key in bid.mediaTypes) {
+      mt = key
+      adUnit = { sizes: [] }
+      adUnit.id = bid.adUnitCode
+      for (let i = 0; i < bid.mediaTypes[key].sizes.length; i++) {
+        let size = {}
+        size.h = bid.mediaTypes[key].sizes[i][0]
+        size.w = bid.mediaTypes[key].sizes[i][1]
+        size.mt = mt
+        adUnit.sizes.push(size)
+      }
+      payload.adUnitCode.push(adUnit)
+    }
   });
-
   payload.bidRequests.push(bidReq);
 }
 
@@ -164,6 +178,7 @@ function bidTimeout(args) {
 
 function sendEvent(payload) {
   try {
+    // console.log(`prebidGlobal: ${JSON.stringify($$PREBID_GLOBAL$$, null, 1)}`)
     console.log(`sendEvent, payload: ${JSON.stringify(payload, null, 1)}`)
     // let responseEvents = btoa(JSON.stringify(payload)); // encodes payload in base-64
     // let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
