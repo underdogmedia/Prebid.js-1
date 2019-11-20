@@ -1,10 +1,9 @@
-// import { ajax } from '../src/ajax';
 import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
-// import * as utils from '../src/utils';
+let pbVersion = require('../package.json').version
+// import { ajax } from '../src/ajax';
 
-// const analyticsType = 'endpoint';
 // const url = 'underdog_media_url';
 
 // Events needed
@@ -19,23 +18,15 @@ const {
   }
 } = CONSTANTS;
 
-// Prebid events we could utilize...
-
-// BID_ADJUSTMENT
-// NO_BID
-// BIDDER_DONE
-// SET_TARGETING
-// REQUEST_BIDS
-// ADD_AD_UNITS
-// AD_RENDER_FAILED
-
-// Memory objects
 let payload = {
   reqType: 'Prebid',
-  adUnitCode: [],
+  adUnits: [],
   bidRequests: [],
-  bidResponses: [],
-  udmInternal: {}
+  udmInternal: {
+    sid: '?',
+    prodType: 'R3',
+    clientVers: pbVersion
+  }
 };
 
 let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpoint'}),
@@ -66,7 +57,102 @@ let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpo
     }
   });
 
-// DFP support
+// *** EVENT HANDLERS *** //
+
+function auctionInit(args) {}
+
+function bidRequested(args) {
+  // Initial formatting for payload.bidRequests
+  let bidReq = {
+    bidder: args.bidderCode,
+    bidType: 'Prebid',
+    bidRecvCnt: 0,
+    bidUnits: []
+  };
+
+  // Formatting payload.adUnits
+  args.bids.forEach(bid => {
+    let bidUnit = {
+      adUnitId: bid.adUnitCode,
+      sizes: [{
+        won: false
+      }]
+    }
+    bidReq.bidUnits.push(bidUnit)
+
+    let adUnit = {}
+    let mt = ''
+
+    for (let key in bid.mediaTypes) {
+      mt = key
+      adUnit = {
+        id: bid.adUnitCode,
+        sizes: []
+      }
+      for (let i = 0; i < bid.mediaTypes[key].sizes.length; i++) {
+        let size = {}
+        size.h = bid.mediaTypes[key].sizes[i][0]
+        size.w = bid.mediaTypes[key].sizes[i][1]
+        size.mt = mt
+        adUnit.sizes.push(size)
+      }
+      payload.adUnits.push(adUnit)
+    }
+  });
+  payload.bidRequests.push(bidReq);
+}
+
+function bidResponse(args) {
+  for (let i = 0; i < payload.bidRequests.length; i++) {
+    if (args.bidderCode === payload.bidRequests[i].bidder) {
+      payload.bidRequests[i].bidRecvCnt++
+      payload.bidRequests[i].took = args.timeToRespond
+
+      for (let j = 0; j < payload.bidRequests[i].bidUnits.length; j++) {
+        if (args.adUnitCode === payload.bidRequests[i].bidUnits[j].adUnitId) {
+          payload.bidRequests[i].bidUnits[j].sizes[0].cpm = args.cpm
+          payload.bidRequests[i].bidUnits[j].sizes[0].requestId = args.requestId
+        }
+      }
+    }
+  }
+}
+
+function bidWon(args) {
+  for (let i = 0; i < payload.bidRequests.length; i++) {
+    if (args.bidderCode === payload.bidRequests[i].bidder && args.requestId === payload.bidRequests[i].bidUnits[0].sizes[0].requestId) {
+      payload.bidRequests[i].bidUnits[0].sizes[0].won = true
+      delete payload.bidRequests[i].bidUnits[0].sizes[0].requestId
+    } else {
+      delete payload.bidRequests[i].bidUnits[0].sizes[0].cpm
+      delete payload.bidRequests[i].bidUnits[0].sizes[0].requestId
+    }
+  }
+}
+
+function bidTimeout(args) {}
+
+function sendEvent(payload) {
+  try {
+    console.log(`sendEvent, payload: ${JSON.stringify(payload, null, 1)}`)
+  } catch (err) {
+    console.log(err)
+  }
+}
+
+// DEVICE TYPE
+
+// function deviceType() {
+//   if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
+//     return 'tablet';
+//   }
+//   if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
+//     return 'mobile';
+//   }
+//   return 'desktop';
+// }
+
+// DFP SUPPORT
 
 // let googletag = window.googletag || {};
 // googletag.cmd = googletag.cmd || [];
@@ -97,95 +183,3 @@ adapterManager.registerAnalyticsAdapter({
 });
 
 export default underdogmediaAnalyticsAdapter;
-
-// *** EVENT HANDLERS *** //
-
-let bidResponsesMapper = {};
-
-function auctionInit(args) {
-  // console.log(`auction init, args: ${JSON.stringify(args, null, 1)}`)
-}
-
-function bidRequested(args) {
-  // console.log(`bidRequested, args: ${JSON.stringify(args, null, 1)}`)
-  let bidReq = {
-    bidder: args.bidderCode,
-    bidType: 'Prebid',
-    bidRecvCnt: 0,
-    bidUnits: []
-  };
-
-  console.log(args.bids.length)
-
-  args.bids.forEach(bid => {
-    console.log(`bid: ${JSON.stringify(bid, null, 1)}`)
-    let adUnit = {}
-    let mt = ''
-    for (let key in bid.mediaTypes) {
-      mt = key
-      adUnit = { sizes: [] }
-      adUnit.id = bid.adUnitCode
-      for (let i = 0; i < bid.mediaTypes[key].sizes.length; i++) {
-        let size = {}
-        size.h = bid.mediaTypes[key].sizes[i][0]
-        size.w = bid.mediaTypes[key].sizes[i][1]
-        size.mt = mt
-        adUnit.sizes.push(size)
-      }
-      payload.adUnitCode.push(adUnit)
-    }
-  });
-  payload.bidRequests.push(bidReq);
-}
-
-function bidResponse(args) {
-  // console.log(`bidResponse, args: ${JSON.stringify(args, null, 1)}`)
-  let bidRes = {
-    bidder: args.bidderCode,
-    event_timestamp: args.responseTimestamp,
-    size: args.size,
-    gpt_code: args.adUnitCode,
-    currency: args.currency,
-    creative_id: args.creativeId,
-    time_to_respond: args.timeToRespond,
-    cpm: args.cpm,
-    is_winning: false
-  };
-
-  bidResponsesMapper[args.requestId] = payload.bidResponses.push(bidRes) - 1;
-}
-
-function bidWon(args) {
-  console.log(`bidWon, args: ${JSON.stringify(args, null, 1)}`)
-  // let eventIndex = bidResponsesMapper[args.requestId];
-  // payload.events[eventIndex].is_winning = true;
-}
-
-function bidTimeout(args) {
-  console.log('bidTimeout event')
-}
-
-// Methods
-// function deviceType() {
-//   if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
-//     return 'tablet';
-//   }
-//   if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
-//     return 'mobile';
-//   }
-//   return 'desktop';
-// }
-
-function sendEvent(payload) {
-  try {
-    // console.log(`prebidGlobal: ${JSON.stringify($$PREBID_GLOBAL$$, null, 1)}`)
-    console.log(`sendEvent, payload: ${JSON.stringify(payload, null, 1)}`)
-    // let responseEvents = btoa(JSON.stringify(payload)); // encodes payload in base-64
-    // let mutation = `mutation {createEvent(input: {event: {eventData: "${responseEvents}"}}) {event {createTime } } }`;
-    // let dataToSend = JSON.stringify({ query: mutation });
-    // ajax(url, function () { console.log(Date.now() + ' Sending event to Underdog Media server.') }, dataToSend, {
-    //   contentType: 'application/json',
-    //   method: 'POST'
-    // });
-  } catch (err) { console.log(err) }
-}
