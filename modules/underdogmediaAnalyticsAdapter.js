@@ -1,6 +1,7 @@
 import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
+import * as utils from '../src/utils';
 let pbVersion = require('../package.json').version
 // import { ajax } from '../src/ajax';
 
@@ -18,13 +19,16 @@ const {
   }
 } = CONSTANTS;
 
+let currentAuctions = {}
+
 let payload = {
   reqType: 'Prebid',
+  prebidSiteId: '',
+  prebidSiteName: '',
   adUnits: [],
   bidRequests: [],
   udmInternal: {
-    sid: '?',
-    prodType: 'R3',
+    prodType: 'Prebid',
     clientVers: pbVersion
   }
 };
@@ -32,34 +36,83 @@ let payload = {
 let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpoint'}),
   {
     track({ eventType, args }) {
-      switch (eventType) {
-        case AUCTION_INIT:
-          auctionInit(args);
-          break;
-        case BID_REQUESTED:
-          bidRequested(args);
-          break;
-        case BID_RESPONSE:
-          bidResponse(args);
-          break;
-        case BID_WON:
-          bidWon(args);
-          break;
-        case BID_TIMEOUT:
-          bidTimeout(args);
-          break;
-        case AUCTION_END:
-          setTimeout(function () { sendEvent(payload) }, 3100);
-          break;
-        default:
-          break;
+      try {
+        if (args && args.auctionId && currentAuctions[args.auctionId] === undefined) {
+          currentAuctions[args.auctionId] = new AuctionData(this.sovrnId, args.auctionId)
+        }
+        switch (eventType) {
+          case AUCTION_INIT:
+            auctionInit(args);
+            break;
+          case BID_REQUESTED:
+            bidRequested(args);
+            break;
+          case BID_RESPONSE:
+            bidResponse(args);
+            break;
+          case BID_WON:
+            bidWon(args);
+            break;
+          case BID_TIMEOUT:
+            bidTimeout(args);
+            break;
+          case AUCTION_END:
+            setTimeout(function () { sendEvent(payload) }, 3100);
+            break;
+          default:
+            break;
+        }
+      } catch (e) {
+        new LogError(e, {eventType, args}).send()
       }
     }
   });
 
+class Auction {
+  /**
+   * Creates a new instance for separate auctions
+   * @param {string} prebidSiteId - site specific id
+   * @param {string} prebidSiteName - site specific name
+   * @param {string} auctionId- unique id for each auction
+   */
+  constructor(prebidSiteId, prebidSiteName, auctionId) {
+    this.auction = {}
+    this.auction.prebidVersion = pbVersion
+    this.auction.prebidSiteId = prebidSiteId
+    this.auction.prebidSiteName = prebidSiteName
+    this.auction.auctionId = auctionId
+
+    this.auction.url = utils.getTopWindowLocation().href
+  }
+}
+
+class LogError {
+  /**
+   * Creates a new instance for error messages
+   * @param {object} e - error event object
+   * @param {object} data - auction specific data
+   */
+  constructor(e, data) {
+    this.error = {}
+    this.error.payload = 'error'
+    this.error.message = e.message
+    this.error.stack = e.stack
+    this.error.data = data
+    this.error.prebidVersion = $$REPO_AND_VERSION$$
+    this.error.sovrnId = sovrnId
+    this.error.url = utils.getTopWindowLocation().href
+    this.error.userAgent = navigator.userAgent
+  }
+  send() {
+    console.log(`LogError error message: ${this.error}`)
+  }
+}
+
 // *** EVENT HANDLERS *** //
 
 function auctionInit(args) {}
+
+let bidIdMapper = []
 
 function bidRequested(args) {
   // Initial formatting for payload.bidRequests
@@ -172,6 +225,17 @@ underdogmediaAnalyticsAdapter.enableAnalytics = function (config) {
   if (!config.options.pubId) {
     utils.logError('Publisher ID (pubId) option is not defined. Analytics won\'t work');
     return;
+  }
+
+  let prebidSiteId = ''
+  let prebidSiteName = ''
+
+  if (config && config.options && config.options.prebidSiteId) {
+    prebidSiteId = config.options.prebidSiteId
+  }
+
+  if (config && config.options && config.options.prebidSiteName) {
+    prebidSiteName = config.options.prebidSiteName
   }
 
   underdogmediaAnalyticsAdapter.originEnableAnalytics(config); // call the base class function
