@@ -45,39 +45,6 @@
                 }
             }
         ]
-    },
-    {
-        code: 'div-gpt-ad-1460505748561-1',
-        mediaTypes: {
-            banner: {
-                sizes: [
-                    [300, 250],
-                    [300, 600]
-                ],
-            }
-        },
-        // Replace this object to test a new Adapter!
-        bids: [{
-                bidder: 'criteo',
-                params: {
-                    zoneId: 497747
-                }
-            },
-            {
-                bidder: 'mantis',
-                params: {
-                    property: 'demo',
-                    zone: 'zone'
-                }
-            },
-            {
-                bidder: "smartrtb",
-                params: {
-                    zoneId: "N4zTDq3PPEHBIODv7cXK",
-                    forceBid: true
-                }
-            }
-        ]
     }];
     var pbjs = pbjs || {};
     pbjs.que = pbjs.que || [];
@@ -95,11 +62,11 @@
             bidsBackHandler: sendAdserverRequest,
             timeout: PREBID_TIMEOUT
         });
-        pbjs.requestBids({
-            adUnits: [adUnits[1]],
-            bidsBackHandler: sendAdserverRequest,
-            timeout: PREBID_TIMEOUT
-        });
+        // pbjs.requestBids({
+        //     adUnits: [adUnits[1]],
+        //     bidsBackHandler: sendAdserverRequest,
+        //     timeout: PREBID_TIMEOUT
+        // });
     });
     pbjs.que.push(function() {
         pbjs.enableAnalytics([{

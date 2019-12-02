@@ -87,7 +87,7 @@ class Auction {
     }
     this.auction.start = ''
     this.auction.end = ''
-    this.auction.device = this.deviceType()
+    // this.auction.device = this.deviceType()
     setTimeout(function(id) {
       console.log(`deleting auction ${id}`)
       delete currentAuctions[id]
@@ -103,7 +103,6 @@ class Auction {
    * @param {*} args - the args object from the auction event
    */
   bidRequested(args) {
-    // console.log(`bidRequested args: ${JSON.stringify(args, null, 1)}`)
     let bidReq = {
       bidder: args.bidderCode,
       bidType: 'Prebid',
@@ -177,7 +176,6 @@ class Auction {
   }
 
   noBid(args) {
-    console.log(`noBid args: ${JSON.stringify(args, null, 1)}`)
     for (let i = 0; i < this.auction.bidRequests.length; i++) {
       if (args.bidder === this.auction.bidRequests[i].bidder) {
         this.auction.bidRequests[i].took = 'noResponse'
@@ -207,12 +205,9 @@ class Auction {
     }
   }
 
-  bidTimeout(args) {
-    console.log(`bidTimeout args: ${JSON.stringify(args, null, 1)}`)
-  }
+  bidTimeout(args) {}
 
   auctionEnd(args) {
-    console.log(`auctionEnd args: ${JSON.stringify(args, null, 1)}`)
     this.auction.end = args.auctionEnd
     let auctionTime = this.auction.end - this.auction.start
     for (let i = 0; i < this.auction.bidRequests.length; i++) {
@@ -228,15 +223,16 @@ class Auction {
     console.log(`this.auction: ${JSON.stringify(this.auction, null, 1)}`)
   }
 
-  deviceType() {
-    if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
-      return 'tablet';
-    }
-    if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
-      return 'mobile';
-    }
-    return 'desktop';
-  }
+  // deviceType() {
+  //   console.log(`navigator: ${JSON.stringify(navigator, null, 1)}`)
+  //   if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
+  //     return 'tablet';
+  //   }
+  //   if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
+  //     return 'mobile';
+  //   }
+  //   return 'desktop';
+  // }
 }
 
 class LogError {
