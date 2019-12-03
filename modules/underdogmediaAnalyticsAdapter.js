@@ -2,7 +2,8 @@ import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
 import * as utils from '../src/utils';
-let pbVersion = require('../package.json').version
+import { config } from '../src/config';
+let pbVersion = require('../package.json').version;
 // import { ajax } from '../src/ajax';
 
 // const url = 'underdog_media_url';
@@ -87,6 +88,10 @@ class Auction {
     }
     this.auction.start = ''
     this.auction.end = ''
+    this.auction.timeouts = {
+      buffer: config.getConfig('timeoutBuffer'),
+      bidder: config.getConfig('bidderTimeout'),
+    }
     // this.auction.device = this.deviceType()
     setTimeout(function(id) {
       console.log(`deleting auction ${id}`)
@@ -256,7 +261,7 @@ class LogError {
   }
 }
 
-// utility function for debugging
+// utility function for testing
 underdogmediaAnalyticsAdapter.getAuctions = () => {
   return currentAuctions;
 };
