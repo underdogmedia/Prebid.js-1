@@ -2,7 +2,6 @@ import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
 import * as utils from '../src/utils';
-import { config } from '../src/config';
 let pbVersion = require('../package.json').version;
 // import { ajax } from '../src/ajax';
 
@@ -88,11 +87,7 @@ class Auction {
     }
     this.auction.start = ''
     this.auction.end = ''
-    this.auction.timeouts = {
-      buffer: config.getConfig('timeoutBuffer'),
-      bidder: config.getConfig('bidderTimeout'),
-    }
-    // this.auction.device = this.deviceType()
+    this.auction.device = this.deviceType()
     setTimeout(function(id) {
       console.log(`deleting auction ${id}`)
       delete currentAuctions[id]
@@ -210,7 +205,13 @@ class Auction {
     }
   }
 
-  bidTimeout(args) {}
+  bidTimeout(args) {
+    for (let i = 0; i < this.auction.bidRequests.length; i++) {
+      if (args.bidder === this.auction.bidRequests[i].bidder) {
+        this.auction.bidRequests[i].timedOut = true
+      }
+    }
+  }
 
   auctionEnd(args) {
     this.auction.end = args.auctionEnd
@@ -228,16 +229,15 @@ class Auction {
     console.log(`this.auction: ${JSON.stringify(this.auction, null, 1)}`)
   }
 
-  // deviceType() {
-  //   console.log(`navigator: ${JSON.stringify(navigator, null, 1)}`)
-  //   if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
-  //     return 'tablet';
-  //   }
-  //   if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
-  //     return 'mobile';
-  //   }
-  //   return 'desktop';
-  // }
+  deviceType() {
+    if ((/ipad|android 3.0|xoom|sch-i800|playbook|tablet|kindle/i.test(navigator.userAgent.toLowerCase()))) {
+      return 'tablet';
+    }
+    if ((/iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(navigator.userAgent.toLowerCase()))) {
+      return 'mobile';
+    }
+    return 'desktop';
+  }
 }
 
 class LogError {

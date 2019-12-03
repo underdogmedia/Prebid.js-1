@@ -1,6 +1,7 @@
 import underdogmediaAnalyticsAdapter from '../../../modules/underdogmediaAnalyticsAdapter';
+import adaptermanager from 'src/adapterManager'
 import { config } from 'src/config'
-let adaptermanager = require('src/adapterManager').default;
+
 let assert = require('assert');
 let events = require('src/events');
 let constants = require('src/constants.json');
@@ -24,16 +25,15 @@ let auctionInit = {
 };
 
 let bidderCode = 'underdogmedia';
-let bidderRequestId = '123bri';
+let bidType = 'Prebid';
 let adUnitCode = 'div';
-let adUnitCode2 = 'div2';
 let bidId = 'bidid';
-let bidId2 = 'bidid2';
 let tId = '7aafa3ee-a80a-46d7-a4a0-cbcba463d97a';
-let tId2 = '99dca3ee-a80a-46d7-a4a0-cbcba463d97e';
+let bidSizeId = 0;
+let bidderRequestId = '123bri';
 
 let bidRequested = {
-  auctionStart: auctionStartTimestamp,
+  // auctionId to be passed in and populated in emitEvent()
   bidderCode: bidderCode,
   bidderRequestId: bidderRequestId,
   bids: [
@@ -41,22 +41,18 @@ let bidRequested = {
       adUnitCode: adUnitCode,
       bidId: bidId,
       bidder: bidderCode,
-      bidderRequestId: '10340af0c7dc72',
-      sizes: [[300, 250]],
-      startTime: auctionStartTimestamp + 100,
+      mediaTypes: {
+        'banner': {
+          sizes: [
+            [300, 250],
+            [300, 600]
+          ]
+        }
+      },
       transactionId: tId
-    },
-    {
-      adUnitCode: adUnitCode2,
-      bidId: bidId2,
-      bidder: bidderCode,
-      bidderRequestId: '10340af0c7dc72',
-      sizes: [[300, 250]],
-      startTime: auctionStartTimestamp + 100,
-      transactionId: tId2
     }
   ],
-  doneCbCallCount: 1,
+  auctionStart: auctionStartTimestamp,
   start: auctionStartTimestamp,
   timeout: timeout
 };
@@ -70,7 +66,7 @@ let bidResponse = {
   mediaType: 'banner',
   source: 'client',
   requestId: bidId,
-  cpm: 0.8584999918937682,
+  cpm: 99,
   creativeId: 'cridprebidrtb',
   dealId: null,
   currency: 'USD',
@@ -96,6 +92,25 @@ let bidResponse = {
   },
   status: 'rendered'
 };
+
+let bidWon = {
+  bidderCode: bidderCode,
+  width: 300,
+  height: 250,
+  statusMessage: 'Bid available',
+  cpm: 99,
+  adUnitCode: adUnitCode
+}
+
+let bidTimeout = {
+  bidId: bidId,
+  bidder: bidderCode,
+  adUnitCode: adUnitCode
+}
+
+let auctionEnd = {
+  auctionEnd: auctionStartTimestamp + 1000
+}
 
 describe.only('Underdog Media Analytics Adapter', function () {
   let xhr;
@@ -154,7 +169,7 @@ describe.only('Underdog Media Analytics Adapter', function () {
     });
   });
 
-  describe('underdogmediaAnalyticsAdapter ', function() {
+  describe('underdogmediaAnalyticsAdapter config', function() {
     beforeEach(() => {
       underdogmediaAnalyticsAdapter.enableAnalytics({
         provider: 'underdogmedia',
@@ -171,12 +186,12 @@ describe.only('Underdog Media Analytics Adapter', function () {
       underdogmediaAnalyticsAdapter.disableAnalytics();
       underdogmediaAnalyticsAdapter.track.restore();
     });
-    it('should have correct type', function () {
+    it('should have correct adapter type', function () {
       assert.equal(underdogmediaAnalyticsAdapter.getAdapterType(), 'endpoint')
     })
   });
 
-  describe('auction data collector ', function() {
+  describe('auction event handlers', function() {
     beforeEach(() => {
       underdogmediaAnalyticsAdapter.enableAnalytics({
         provider: 'underdogmedia',
@@ -194,23 +209,18 @@ describe.only('Underdog Media Analytics Adapter', function () {
       underdogmediaAnalyticsAdapter.track.restore();
     });
 
-    it('should create auctiondata record from init ', function () {
+    it('should initialize auction with auctionId', function () {
       let auctionId = '123.123.123.123';
       emitEvent('AUCTION_INIT', auctionInit, auctionId);
 
       let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
-      console.log(`auctionData: ${JSON.stringify(auctionData, null, 1)}`)
       let currentAuction = auctionData[auctionId];
       assert(currentAuction);
-      let expectedTimeOutData = {
-        buffer: config.getConfig('timeoutBuffer'),
-        bidder: config.getConfig('bidderTimeout'),
-      };
-      expect(currentAuction.auction.timeouts).to.deep.equal(expectedTimeOutData);
       assert.equal(currentAuction.auction.auctionId, auctionId);
+      expect(currentAuction.auction.start).to.not.equal('');
     });
 
-    it('should create a bidrequest object ', function() {
+    it('should populate a bidRequests array', function() {
       let auctionId = '234.234.234.234';
       emitEvent('AUCTION_INIT', auctionInit, auctionId);
       emitEvent('BID_REQUESTED', bidRequested, auctionId);
@@ -221,22 +231,24 @@ describe.only('Underdog Media Analytics Adapter', function () {
       let requests = currentAuction.auction.bidRequests;
       assert(requests);
       assert.equal(requests.length, 1);
-      assert.equal(requests[0].bidderCode, bidderCode);
-      assert.equal(requests[0].bidderRequestId, bidderRequestId);
-      assert.equal(requests[0].timeout, timeout);
-      let bids = requests[0].bidUnits;
-      assert(bids);
-      assert.equal(bids.length, 2);
-      assert.equal(bids[0].bidId, bidId);
-      assert.equal(bids[0].bidderCode, bidderCode);
-      assert.equal(bids[0].transactionId, tId);
-      assert.equal(bids[0].sizes.length, 1);
-      assert.equal(bids[0].sizes[0][0], 300);
-      assert.equal(bids[0].sizes[0][1], 250);
-      expect(requests[0]).to.not.have.property('doneCbCallCount');
-      expect(requests[0]).to.not.have.property('auctionId');
+      assert.equal(requests[0].bidder, bidderCode);
+      assert.equal(requests[0].bidType, bidType);
+      assert.equal(requests[0].timedOut, null);
+      expect(requests[0]).to.not.have.property('took');
+
+      let bidUnits = requests[0].bidUnits;
+      assert(bidUnits);
+      assert.equal(bidUnits.length, 1);
+      assert.equal(bidUnits[0].adUnitId, adUnitCode);
+
+      let bidSizes = bidUnits[0].sizes;
+      assert.equal(bidSizes.length, 2);
+      assert.equal(bidSizes[0].id, bidSizeId)
+      expect(bidSizes[0]).to.not.have.property('cpm');
+      expect(bidSizes[0]).to.not.have.property('won');
     });
-    it('should add results to the bid with response ', function () {
+
+    it('should add appropriate response props to bidRequests', function () {
       let auctionId = '345.345.345.345';
       emitEvent('AUCTION_INIT', auctionInit, auctionId);
       emitEvent('BID_REQUESTED', bidRequested, auctionId);
@@ -244,17 +256,54 @@ describe.only('Underdog Media Analytics Adapter', function () {
 
       let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
       let currentAuction = auctionData[auctionId];
-      let returnedBid = currentAuction.auction.bidRequests[0].bidUnits[0];
-      assert.equal(returnedBid.bidId, bidId);
-      assert.equal(returnedBid.bidder, bidderCode);
-      assert.equal(returnedBid.transactionId, tId);
-      assert.equal(returnedBid.sizes.length, 1);
-      assert.equal(returnedBid.sizes[0][0], 300);
-      assert.equal(returnedBid.sizes[0][1], 250);
-      assert.equal(returnedBid.adserverTargeting.hb_adid, '3870e27a5752fb');
-      assert.equal(returnedBid.adserverTargeting.hb_bidder, bidderCode);
-      assert.equal(returnedBid.adserverTargeting.hb_pb, '0.85');
-      assert.equal(returnedBid.cpm, 0.8584999918937682);
+      let bidRequest = currentAuction.auction.bidRequests[0];
+
+      expect(bidRequest).to.have.property('took');
+      assert.equal(bidRequest.bidRecvCnt, 1)
+    });
+
+    it('should add appropriate props to winnning bid', function () {
+      let auctionId = '456.456.456.456';
+      emitEvent('AUCTION_INIT', auctionInit, auctionId);
+      emitEvent('BID_REQUESTED', bidRequested, auctionId);
+      emitEvent('BID_RESPONSE', bidResponse, auctionId);
+      emitEvent('BID_WON', bidWon, auctionId);
+
+      let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
+      let currentAuction = auctionData[auctionId];
+      let bidSize = currentAuction.auction.bidRequests[0].bidUnits[0].sizes[0];
+
+      assert.equal(bidSize.won, true)
+    });
+
+    it('should handle bidTimeout event by adding timedOut prop', function () {
+      let auctionId = '567.567.567.567';
+      emitEvent('AUCTION_INIT', auctionInit, auctionId);
+      emitEvent('BID_REQUESTED', bidRequested, auctionId);
+      emitEvent('BID_TIMEOUT', bidTimeout, auctionId);
+
+      let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
+      let currentAuction = auctionData[auctionId];
+      let bidRequest = currentAuction.auction.bidRequests[0];
+
+      assert.equal(bidRequest.timedOut, true)
+    });
+
+    it('should handle auctionEnd event by deleting appropriate props and sending payload', function () {
+      let auctionId = '678.678.678.678';
+      emitEvent('AUCTION_INIT', auctionInit, auctionId);
+      emitEvent('BID_REQUESTED', bidRequested, auctionId);
+      emitEvent('BID_RESPONSE', bidResponse, auctionId);
+      emitEvent('BID_WON', bidWon, auctionId);
+      emitEvent('AUCTION_END', auctionEnd, auctionId);
+
+      let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
+      let currentAuction = auctionData[auctionId];
+
+      expect(currentAuction.auction).to.not.have.property('adUnitIdMapper');
+      expect(currentAuction.auction).to.not.have.property('auctionId');
+      expect(currentAuction.auction).to.not.have.property('start');
+      expect(currentAuction.auction).to.not.have.property('end');
     });
   });
-})
+});
