@@ -1,7 +1,5 @@
 import underdogmediaAnalyticsAdapter from '../../../modules/underdogmediaAnalyticsAdapter';
 import adaptermanager from 'src/adapterManager'
-import { config } from 'src/config'
-
 let assert = require('assert');
 let events = require('src/events');
 let constants = require('src/constants.json');
@@ -300,10 +298,12 @@ describe.only('Underdog Media Analytics Adapter', function () {
       let auctionData = underdogmediaAnalyticsAdapter.getAuctions();
       let currentAuction = auctionData[auctionId];
 
-      expect(currentAuction.auction).to.not.have.property('adUnitIdMapper');
-      expect(currentAuction.auction).to.not.have.property('auctionId');
-      expect(currentAuction.auction).to.not.have.property('start');
-      expect(currentAuction.auction).to.not.have.property('end');
+      assert.equal(currentAuction.auctionId, auctionId)
+      assert.equal(currentAuction.status, 'complete')
+      // expect(currentAuction.auction).to.not.have.property('adUnitIdMapper');
+      // expect(currentAuction.auction).to.not.have.property('auctionId');
+      // expect(currentAuction.auction).to.not.have.property('start');
+      // expect(currentAuction.auction).to.not.have.property('end');
     });
   });
 });

@@ -53,7 +53,7 @@ let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpo
             currentAuctions[args.auctionId].bidTimeout(args)
             break;
           case AUCTION_END:
-            setTimeout(function () { currentAuctions[args.auctionId].auctionEnd(args) }, 3100);
+            currentAuctions[args.auctionId].auctionEnd(args)
             break;
           default:
             break;
