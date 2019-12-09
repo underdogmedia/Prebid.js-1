@@ -2,7 +2,7 @@ import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
 import * as utils from '../src/utils';
-let pbVersion = require('../package.json').version;
+let pbVersion = '$prebid.version$'
 // import { ajax } from '../src/ajax';
 
 // const url = 'underdog_media_url';
