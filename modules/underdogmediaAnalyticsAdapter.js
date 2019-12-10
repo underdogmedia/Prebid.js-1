@@ -2,7 +2,9 @@ import adapter from '../src/AnalyticsAdapter';
 import adapterManager from '../src/adapterManager';
 import CONSTANTS from '../src/constants.json';
 import * as utils from '../src/utils';
-let pbVersion = '$prebid.version$'
+import find from 'core-js/library/fn/array/find';
+import includes from 'core-js/library/fn/array/includes';
+let pbVersion = '$prebid.version$';
 // import { ajax } from '../src/ajax';
 
 // const url = 'underdog_media_url';
@@ -53,7 +55,7 @@ let underdogmediaAnalyticsAdapter = Object.assign(adapter({analyticsType: 'endpo
             currentAuctions[args.auctionId].bidTimeout(args)
             break;
           case AUCTION_END:
-            currentAuctions[args.auctionId].auctionEnd(args)
+            setTimeout(function () { currentAuctions[args.auctionId].auctionEnd(args) }, 3100);
             break;
           default:
             break;
@@ -114,10 +116,8 @@ class Auction {
     args.bids.forEach(bid => {
       let adUnit = {}
       let bidUnit = {}
-      let mt = ''
 
-      for (let key in bid.mediaTypes) {
-        mt = key
+      for (let mt in bid.mediaTypes) {
         adUnit = {
           id: bid.adUnitCode,
           sizes: []
@@ -126,24 +126,45 @@ class Auction {
           adUnitId: bid.adUnitCode,
           sizes: []
         }
-        for (let i = 0; i < bid.mediaTypes[key].sizes.length; i++) {
+        bid.mediaTypes[mt].sizes.forEach(size => {
           let adUnitSize = {}
           let bidUnitSize = {}
-          adUnitSize.w = bid.mediaTypes[key].sizes[i][0]
-          adUnitSize.h = bid.mediaTypes[key].sizes[i][1]
+          adUnitSize.w = size[0]
+          adUnitSize.h = size[1]
           let sizeStr = `${adUnitSize.w}x${adUnitSize.h}`
-          if (this.auction.adUnitIdMapper.includes(sizeStr)) {
-            adUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
-            bidUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+          if (includes(this.auction.adUnitIdMapper, sizeStr)) {
+            let strIdx = this.auction.adUnitIdMapper.indexOf(sizeStr)
+            adUnitSize.id = strIdx
+            bidUnitSize.id = strIdx
           } else {
             this.auction.adUnitIdMapper.push(sizeStr)
-            adUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
-            bidUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+            let strIdx = this.auction.adUnitIdMapper.indexOf(sizeStr)
+            adUnitSize.id = strIdx
+            bidUnitSize.id = strIdx
           }
           adUnitSize.mt = mt
           adUnit.sizes.push(adUnitSize)
           bidUnit.sizes.push(bidUnitSize)
-        }
+        })
+
+        // for (let i = 0; i < bid.mediaTypes[key].sizes.length; i++) {
+        //   let adUnitSize = {}
+        //   let bidUnitSize = {}
+        //   adUnitSize.w = bid.mediaTypes[key].sizes[i][0]
+        //   adUnitSize.h = bid.mediaTypes[key].sizes[i][1]
+        //   let sizeStr = `${adUnitSize.w}x${adUnitSize.h}`
+        //   if (this.auction.adUnitIdMapper.includes(sizeStr)) {
+        //     adUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+        //     bidUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+        //   } else {
+        //     this.auction.adUnitIdMapper.push(sizeStr)
+        //     adUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+        //     bidUnitSize.id = this.auction.adUnitIdMapper.indexOf(sizeStr)
+        //   }
+        //   adUnitSize.mt = mt
+        //   adUnit.sizes.push(adUnitSize)
+        //   bidUnit.sizes.push(bidUnitSize)
+        // }
         this.auction.adUnits.push(adUnit)
         bidReq.bidUnits.push(bidUnit)
       }
@@ -156,31 +177,48 @@ class Auction {
    * @param {*} args - the args object from the auction event
    */
   bidResponse(args) {
-    for (let i = 0; i < this.auction.bidRequests.length; i++) {
-      if (args.bidderCode === this.auction.bidRequests[i].bidder) {
-        this.auction.bidRequests[i].bidRecvCnt++
-        this.auction.bidRequests[i].took = args.timeToRespond
-        for (let j = 0; j < this.auction.bidRequests[i].bidUnits.length; j++) {
-          if (args.adUnitCode === this.auction.bidRequests[i].bidUnits[j].adUnitId) {
-            for (let k = 0; k < this.auction.bidRequests[i].bidUnits[j].sizes.length; k++) {
-              let currBidId = this.auction.bidRequests[i].bidUnits[j].sizes[k].id
-              let resBidId = this.auction.adUnitIdMapper.indexOf(`${args.width}x${args.height}`)
-              if (currBidId === resBidId) {
-                this.auction.bidRequests[i].bidUnits[j].sizes[k].cpm = args.cpm
-              }
-            }
-          }
+    let bidReq = find(this.auction.bidRequests, req => (args.bidderCode === req.bidder))
+    if (bidReq) {
+      bidReq.bidRecvCnt++
+      bidReq.took = args.timeToRespond
+      let bidUnit = find(bidReq.bidUnits, bidUnit => (args.adUnitCode === bidUnit.adUnitId))
+      if (bidUnit) {
+        let size = find(bidUnit.sizes, size => (size.id === this.auction.adUnitIdMapper.indexOf(`${args.width}x${args.height}`)))
+        if (size) {
+          size.cpm = args.cpm
         }
       }
     }
+
+    // for (let i = 0; i < this.auction.bidRequests.length; i++) {
+    //   if (args.bidderCode === this.auction.bidRequests[i].bidder) {
+    //     this.auction.bidRequests[i].bidRecvCnt++
+    //     this.auction.bidRequests[i].took = args.timeToRespond
+    //     for (let j = 0; j < this.auction.bidRequests[i].bidUnits.length; j++) {
+    //       if (args.adUnitCode === this.auction.bidRequests[i].bidUnits[j].adUnitId) {
+    //         for (let k = 0; k < this.auction.bidRequests[i].bidUnits[j].sizes.length; k++) {
+    //           let currBidId = this.auction.bidRequests[i].bidUnits[j].sizes[k].id
+    //           let resBidId = this.auction.adUnitIdMapper.indexOf(`${args.width}x${args.height}`)
+    //           if (currBidId === resBidId) {
+    //             this.auction.bidRequests[i].bidUnits[j].sizes[k].cpm = args.cpm
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   noBid(args) {
-    for (let i = 0; i < this.auction.bidRequests.length; i++) {
-      if (args.bidder === this.auction.bidRequests[i].bidder) {
-        this.auction.bidRequests[i].took = 'noResponse'
-      }
+    let bidReq = find(this.auction.bidRequests, bidReq => (args.bidder === bidReq.bidder))
+    if (bidReq) {
+      bidReq.took = 'noResponse'
     }
+    // for (let i = 0; i < this.auction.bidRequests.length; i++) {
+    //   if (args.bidder === this.auction.bidRequests[i].bidder) {
+    //     this.auction.bidRequests[i].took = 'noResponse'
+    //   }
+    // }
   }
 
   /**
